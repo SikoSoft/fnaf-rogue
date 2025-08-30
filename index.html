@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FNAF Rogue - Five Nights at Freddy's Roguelike</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>FNAF Rogue</h1>
+            <div class="game-stats">
+                <span id="score">Score: 0</span>
+                <span id="health">Health: 100</span>
+                <span id="level">Level: 1</span>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="game-controls">
+            <p>Use arrow keys to move | Collect pizza slices | Avoid animatronics!</p>
+        </div>
+    </div>
+    <script src="dist/game-bundle.js"></script>
+</body>
+</html>

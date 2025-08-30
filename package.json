@@ -1,0 +1,17 @@
+{
+  "name": "fnaf-rogue",
+  "version": "1.0.0",
+  "description": "A Five Nights at Freddy's themed roguelike game",
+  "main": "dist/game.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "python3 -m http.server 8000"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "keywords": ["game", "fnaf", "roguelike", "typescript", "canvas"],
+  "author": "Your Name",
+  "license": "MIT"
+}
