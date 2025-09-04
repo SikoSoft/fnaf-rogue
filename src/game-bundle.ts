@@ -702,6 +702,7 @@ class Game {
     private level: number = 1;
     private jumpscareImage!: HTMLImageElement;
     private jumpscareEndTime: number | null = null;
+    private soundEffects: Record<string, HTMLAudioElement> = {};
 
     constructor() {
         console.log('Game constructor called');
@@ -738,6 +739,7 @@ class Game {
         
         this.generateRooms();
         this.setupEventListeners();
+        this.setupAudio();
         this.gameLoop();
         console.log('Game initialized successfully');
     }
@@ -760,6 +762,11 @@ class Game {
         // Handle key events
         document.addEventListener('keydown', (e) => {
             this.inputHandler.handleKeyDown(e);
+            // Restart game on 'R' key when game is over and jumpscare finished
+            if ((e.key === 'r' || e.key === 'R') && this.gameState.gameOver && this.jumpscareEndTime === null) {
+                e.preventDefault();
+                this.restartGame();
+            }
         });
 
         document.addEventListener('keyup', (e) => {
@@ -840,6 +847,7 @@ class Game {
                     // Trigger jumpscare timer if not already active
                     if (this.jumpscareEndTime === null) {
                         this.jumpscareEndTime = performance.now() + 2000; // 2 seconds
+                        this.playSound('jumpscare');
                     }
                     this.gameState.gameOver = true;
                 }
@@ -967,6 +975,55 @@ class Game {
         } catch (error) {
             console.error('Error in game loop:', error);
         }
+    }
+
+    private restartGame(): void {
+        // Reset core state
+        this.score = 0;
+        this.level = 1;
+        this.lastTime = 0;
+        this.jumpscareEndTime = null;
+
+        // Reset rooms
+        this.rooms = [];
+        this.currentRoomIndex = 0;
+        this.generateRooms();
+
+        // Reset entities and flags
+        this.gameState = {
+            player: new Player(400, 300),
+            enemies: [],
+            powerUps: [],
+            gameOver: false,
+            paused: false
+        };
+
+        // Clear pressed keys to avoid sticky input
+        this.inputHandler.keys = {};
+
+        // Update UI immediately
+        this.updateUI();
+    }
+
+    private setupAudio(): void {
+        this.soundEffects = {
+            jumpscare: new Audio('foxy-jumpscare-fnaf-2.mp3')
+        };
+        const jumpscareAudio = this.soundEffects.jumpscare;
+        jumpscareAudio.preload = 'auto';
+        jumpscareAudio.volume = 1.0;
+    }
+
+    private playSound(key: string): void {
+        const audio = this.soundEffects[key];
+        if (!audio) return;
+        try {
+            audio.currentTime = 0;
+            const playPromise = audio.play();
+            if (playPromise && typeof (playPromise as any).then === 'function') {
+                (playPromise as Promise<void>).catch(() => {});
+            }
+        } catch {}
     }
 }
 

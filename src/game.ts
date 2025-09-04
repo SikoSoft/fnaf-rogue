@@ -19,6 +19,7 @@ export class Game {
     private level: number = 1;
     private jumpscareImage: HTMLImageElement;
     private jumpscareEndTime: number | null = null;
+    private soundEffects: Record<string, HTMLAudioElement> = {};
 
     constructor() {
         this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -41,6 +42,7 @@ export class Game {
         
         this.generateRooms();
         this.setupEventListeners();
+        this.setupAudio();
         this.gameLoop();
     }
 
@@ -62,6 +64,11 @@ export class Game {
         // Handle key events
         document.addEventListener('keydown', (e) => {
             this.inputHandler.handleKeyDown(e);
+            // Restart game on 'R' key when game is over and jumpscare finished
+            if ((e.key === 'r' || e.key === 'R') && this.gameState.gameOver && this.jumpscareEndTime === null) {
+                e.preventDefault();
+                this.restartGame();
+            }
         });
 
         document.addEventListener('keyup', (e) => {
@@ -142,6 +149,7 @@ export class Game {
                     // Trigger game over and start jumpscare timer if not already active
                     if (this.jumpscareEndTime === null) {
                         this.jumpscareEndTime = performance.now() + 2000; // 2 seconds
+                        this.playSound('jumpscare');
                     }
                     this.gameState.gameOver = true;
                 }
@@ -253,6 +261,27 @@ export class Game {
         this.ctx.fillText('Press R to restart', this.canvas.width / 2, this.canvas.height / 2 + 50);
     }
 
+    private setupAudio(): void {
+        this.soundEffects = {
+            jumpscare: new Audio('foxy-jumpscare-fnaf-2.mp3')
+        };
+        const jumpscareAudio = this.soundEffects.jumpscare;
+        jumpscareAudio.preload = 'auto';
+        jumpscareAudio.volume = 1.0;
+    }
+
+    private playSound(key: string): void {
+        const audio = this.soundEffects[key];
+        if (!audio) return;
+        try {
+            audio.currentTime = 0;
+            const playPromise = audio.play();
+            if (playPromise && typeof (playPromise as any).then === 'function') {
+                (playPromise as Promise<void>).catch(() => {});
+            }
+        } catch {}
+    }
+
     private gameLoop(currentTime: number = 0): void {
         const deltaTime = currentTime - this.lastTime;
         this.lastTime = currentTime;
@@ -261,6 +290,34 @@ export class Game {
         this.render();
 
         requestAnimationFrame((time) => this.gameLoop(time));
+    }
+
+    private restartGame(): void {
+        // Reset core state
+        this.score = 0;
+        this.level = 1;
+        this.lastTime = 0;
+        this.jumpscareEndTime = null;
+
+        // Reset rooms
+        this.rooms = [];
+        this.currentRoomIndex = 0;
+        this.generateRooms();
+
+        // Reset entities and flags
+        this.gameState = {
+            player: new Player(400, 300),
+            enemies: [],
+            powerUps: [],
+            gameOver: false,
+            paused: false
+        };
+
+        // Clear pressed keys to avoid sticky input
+        this.inputHandler.keys = {};
+
+        // Update UI immediately
+        this.updateUI();
     }
 }
 
