@@ -17,6 +17,8 @@ export class Game {
     private currentRoomIndex: number = 0;
     private score: number = 0;
     private level: number = 1;
+    private jumpscareImage: HTMLImageElement;
+    private jumpscareEndTime: number | null = null;
 
     constructor() {
         this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -32,6 +34,10 @@ export class Game {
 
         this.inputHandler = new InputHandler();
         this.renderer = new Renderer(this.ctx);
+        
+        // Preload jumpscare image
+        this.jumpscareImage = new Image();
+        this.jumpscareImage.src = 'jumpscare.webp';
         
         this.generateRooms();
         this.setupEventListeners();
@@ -133,6 +139,10 @@ export class Game {
             if (this.gameState.player.bounds.intersects(enemy.bounds)) {
                 this.gameState.player.health -= 20;
                 if (this.gameState.player.health <= 0) {
+                    // Trigger game over and start jumpscare timer if not already active
+                    if (this.jumpscareEndTime === null) {
+                        this.jumpscareEndTime = performance.now() + 2000; // 2 seconds
+                    }
                     this.gameState.gameOver = true;
                 }
             }
@@ -192,10 +202,41 @@ export class Game {
         // Render game entities
         this.renderer.render(this.gameState);
 
-        // Render game over screen
+        // If in jumpscare window, render the jumpscare image fullscreen and skip game over text
+        if (this.jumpscareEndTime !== null) {
+            const now = performance.now();
+            if (now < this.jumpscareEndTime) {
+                this.renderJumpscare();
+                return;
+            } else {
+                // Jumpscare finished
+                this.jumpscareEndTime = null;
+            }
+        }
+
+        // Render game over screen after jumpscare completes
         if (this.gameState.gameOver) {
             this.renderGameOver();
         }
+    }
+
+    private renderJumpscare(): void {
+        // Darken background slightly
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Draw image covering the canvas while preserving aspect ratio
+        const img = this.jumpscareImage;
+        const canvasW = this.canvas.width;
+        const canvasH = this.canvas.height;
+        const imgW = img.width || 1;
+        const imgH = img.height || 1;
+        const scale = Math.max(canvasW / imgW, canvasH / imgH);
+        const drawW = imgW * scale;
+        const drawH = imgH * scale;
+        const dx = (canvasW - drawW) / 2;
+        const dy = (canvasH - drawH) / 2;
+        this.ctx.drawImage(img, dx, dy, drawW, drawH);
     }
 
     private renderGameOver(): void {

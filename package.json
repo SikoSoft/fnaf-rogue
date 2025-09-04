@@ -5,13 +5,20 @@
   "main": "dist/game.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
+    "dev": "concurrently -k \"tsc --watch\" \"python3 -m http.server 8000\"",
     "start": "python3 -m http.server 8000"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "typescript": "^5.0.0"
   },
-  "keywords": ["game", "fnaf", "roguelike", "typescript", "canvas"],
+  "keywords": [
+    "game",
+    "fnaf",
+    "roguelike",
+    "typescript",
+    "canvas"
+  ],
   "author": "Your Name",
   "license": "MIT"
 }
