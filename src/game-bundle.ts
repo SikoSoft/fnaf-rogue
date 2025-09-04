@@ -895,7 +895,7 @@ class Game {
     }
 
     private render(): void {
-        console.log('Render called, canvas size:', this.canvas.width, 'x', this.canvas.height);
+        //console.log('Render called, canvas size:', this.canvas.width, 'x', this.canvas.height);
         
         // Clear canvas
         this.ctx.fillStyle = '#000';
@@ -1015,6 +1015,7 @@ class Game {
     }
 
     private playSound(key: string): void {
+        console.log('Playing sound:', key);
         const audio = this.soundEffects[key];
         if (!audio) return;
         try {
