@@ -109,21 +109,18 @@ class Player implements Vector2D {
         this.bounds = new PlayerBounds(this.x, this.y, this.width, this.height);
     }
 
-    public update(deltaTime: number, inputHandler: InputHandler): void {
+    public update(deltaTime: number, inputHandler: InputHandler, colliders: Array<{x:number,y:number,width:number,height:number}> = []): void {
         const moveSpeed = this.speed * (deltaTime / 1000);
-        
-        if (inputHandler.keys.ArrowUp || inputHandler.keys.w) {
-            this.y -= moveSpeed;
-        }
-        if (inputHandler.keys.ArrowDown || inputHandler.keys.s) {
-            this.y += moveSpeed;
-        }
-        if (inputHandler.keys.ArrowLeft || inputHandler.keys.a) {
-            this.x -= moveSpeed;
-        }
-        if (inputHandler.keys.ArrowRight || inputHandler.keys.d) {
-            this.x += moveSpeed;
-        }
+        let dx = 0, dy = 0;
+        if (inputHandler.keys.ArrowUp || (inputHandler as any).keys.w) dy -= moveSpeed;
+        if (inputHandler.keys.ArrowDown || (inputHandler as any).keys.s) dy += moveSpeed;
+        if (inputHandler.keys.ArrowLeft || (inputHandler as any).keys.a) dx -= moveSpeed;
+        if (inputHandler.keys.ArrowRight || (inputHandler as any).keys.d) dx += moveSpeed;
+
+        this.x += dx;
+        this.resolveCollisions(colliders, 'x');
+        this.y += dy;
+        this.resolveCollisions(colliders, 'y');
 
         // Keep player within bounds
         this.x = Math.max(0, Math.min(800 - this.width, this.x));
@@ -132,6 +129,21 @@ class Player implements Vector2D {
         // Update bounds
         this.bounds.x = this.x;
         this.bounds.y = this.y;
+    }
+
+    private resolveCollisions(colliders: Array<{x:number,y:number,width:number,height:number}>, axis: 'x'|'y') {
+        const selfRect = { x: this.x, y: this.y, width: this.width, height: this.height };
+        for (const c of colliders) {
+            if (selfRect.x < c.x + c.width && selfRect.x + selfRect.width > c.x && selfRect.y < c.y + c.height && selfRect.y + selfRect.height > c.y) {
+                if (axis === 'x') {
+                    if (selfRect.x + selfRect.width / 2 < c.x + c.width / 2) this.x = c.x - this.width; else this.x = c.x + c.width;
+                    selfRect.x = this.x;
+                } else {
+                    if (selfRect.y + selfRect.height / 2 < c.y + c.height / 2) this.y = c.y - this.height; else this.y = c.y + c.height;
+                    selfRect.y = this.y;
+                }
+            }
+        }
     }
 
     public render(ctx: CanvasRenderingContext2D): void {
@@ -201,6 +213,7 @@ class Enemy implements Vector2D {
     public bounds: Bounds;
     public animationFrame: number = 0;
     public animationSpeed: number = 0.1;
+    private hasEnteredPlayArea: boolean = false;
 
     constructor(x: number, y: number, type: 'chicken' | 'fox' | 'bear') {
         this.x = x;
@@ -209,7 +222,7 @@ class Enemy implements Vector2D {
         this.bounds = new EnemyBounds(this.x, this.y, this.width, this.height);
     }
 
-    public update(deltaTime: number, player: Player): void {
+    public update(deltaTime: number, player: Player, colliders: Array<{x:number,y:number,width:number,height:number}> = []): void {
         // Move towards player
         const dx = player.x - this.x;
         const dy = player.y - this.y;
@@ -217,8 +230,17 @@ class Enemy implements Vector2D {
         
         if (distance > 0) {
             const moveSpeed = this.speed * (deltaTime / 1000);
-            this.x += (dx / distance) * moveSpeed;
-            this.y += (dy / distance) * moveSpeed;
+            const stepX = (dx / distance) * moveSpeed;
+            const stepY = (dy / distance) * moveSpeed;
+            if (!this.hasEnteredPlayArea) {
+                this.x += stepX;
+                this.y += stepY;
+            } else {
+                this.x += stepX;
+                this.resolveCollisions(colliders, 'x');
+                this.y += stepY;
+                this.resolveCollisions(colliders, 'y');
+            }
         }
 
         // Update animation frame
@@ -227,6 +249,27 @@ class Enemy implements Vector2D {
         // Update bounds
         this.bounds.x = this.x;
         this.bounds.y = this.y;
+
+        if (!this.hasEnteredPlayArea) {
+            const insideX = this.x >= 0 && this.x <= 800 - this.width;
+            const insideY = this.y >= 0 && this.y <= 600 - this.height;
+            if (insideX && insideY) this.hasEnteredPlayArea = true;
+        }
+    }
+
+    private resolveCollisions(colliders: Array<{x:number,y:number,width:number,height:number}>, axis: 'x'|'y') {
+        const selfRect = { x: this.x, y: this.y, width: this.width, height: this.height };
+        for (const c of colliders) {
+            if (selfRect.x < c.x + c.width && selfRect.x + selfRect.width > c.x && selfRect.y < c.y + c.height && selfRect.y + selfRect.height > c.y) {
+                if (axis === 'x') {
+                    if (selfRect.x + selfRect.width / 2 < c.x + c.width / 2) this.x = c.x - this.width; else this.x = c.x + c.width;
+                    selfRect.x = this.x;
+                } else {
+                    if (selfRect.y + selfRect.height / 2 < c.y + c.height / 2) this.y = c.y - this.height; else this.y = c.y + c.height;
+                    selfRect.y = this.y;
+                }
+            }
+        }
     }
 
     public render(ctx: CanvasRenderingContext2D): void {
@@ -598,6 +641,29 @@ class Room {
                 break;
         }
     }
+    public getColliders(): Array<{x: number, y: number, width: number, height: number}> {
+        const colliders: Array<{x: number, y: number, width: number, height: number}> = [];
+        colliders.push(...this.walls.map(w => ({ x: w.x, y: w.y, width: w.width, height: w.height })));
+        for (const d of this.decorations) {
+            switch (d.type) {
+                case 'table':
+                    colliders.push({ x: d.x, y: d.y, width: 40, height: 30 });
+                    break;
+                case 'chair':
+                    colliders.push({ x: d.x, y: d.y, width: 20, height: 25 });
+                    break;
+                case 'plant':
+                    colliders.push({ x: d.x + 8, y: d.y + 8, width: 24, height: 28 });
+                    break;
+                case 'poster':
+                    break;
+                case 'arcade':
+                    colliders.push({ x: d.x, y: d.y, width: 30, height: 50 });
+                    break;
+            }
+        }
+        return colliders;
+    }
 }
 
 // Renderer Class
@@ -798,12 +864,16 @@ class Game {
     private update(deltaTime: number): void {
         if (this.gameState.gameOver || this.gameState.paused) return;
 
-        // Update player
-        this.gameState.player.update(deltaTime, this.inputHandler);
+        // Current room colliders
+        const currentRoom = this.rooms[this.currentRoomIndex];
+        const colliders = currentRoom ? (currentRoom as any).getColliders() as Array<{x:number,y:number,width:number,height:number}> : [];
+
+        // Update player with colliders
+        this.gameState.player.update(deltaTime, this.inputHandler, colliders);
         
         // Update enemies
         this.gameState.enemies.forEach(enemy => {
-            enemy.update(deltaTime, this.gameState.player);
+            enemy.update(deltaTime, this.gameState.player, colliders);
         });
 
         // Update power-ups

@@ -16,29 +16,62 @@ export class Player implements Vector2D {
         this.bounds = new PlayerBounds(this.x, this.y, this.width, this.height);
     }
 
-    public update(deltaTime: number, inputHandler: InputHandler): void {
+    public update(deltaTime: number, inputHandler: InputHandler, colliders: Array<{x: number, y: number, width: number, height: number}> = []): void {
         const moveSpeed = this.speed * (deltaTime / 1000);
-        
-        if (inputHandler.keys.ArrowUp || inputHandler.keys.w) {
-            this.y -= moveSpeed;
-        }
-        if (inputHandler.keys.ArrowDown || inputHandler.keys.s) {
-            this.y += moveSpeed;
-        }
-        if (inputHandler.keys.ArrowLeft || inputHandler.keys.a) {
-            this.x -= moveSpeed;
-        }
-        if (inputHandler.keys.ArrowRight || inputHandler.keys.d) {
-            this.x += moveSpeed;
-        }
 
-        // Keep player within bounds
+        let dx = 0;
+        let dy = 0;
+        if (inputHandler.keys.ArrowUp || (inputHandler as any).keys.w) dy -= moveSpeed;
+        if (inputHandler.keys.ArrowDown || (inputHandler as any).keys.s) dy += moveSpeed;
+        if (inputHandler.keys.ArrowLeft || (inputHandler as any).keys.a) dx -= moveSpeed;
+        if (inputHandler.keys.ArrowRight || (inputHandler as any).keys.d) dx += moveSpeed;
+
+        // Move X and resolve collisions
+        this.x += dx;
+        this.resolveCollisions(colliders, 'x');
+
+        // Move Y and resolve collisions
+        this.y += dy;
+        this.resolveCollisions(colliders, 'y');
+
+        // Keep within canvas bounds
         this.x = Math.max(0, Math.min(800 - this.width, this.x));
         this.y = Math.max(0, Math.min(600 - this.height, this.y));
 
         // Update bounds
         this.bounds.x = this.x;
         this.bounds.y = this.y;
+    }
+
+    private resolveCollisions(colliders: Array<{x: number, y: number, width: number, height: number}>, axis: 'x' | 'y') {
+        const selfRect = { x: this.x, y: this.y, width: this.width, height: this.height };
+        for (const c of colliders) {
+            if (this.rectsOverlap(selfRect, c)) {
+                if (axis === 'x') {
+                    if (selfRect.x + selfRect.width / 2 < c.x + c.width / 2) {
+                        // Coming from left
+                        this.x = c.x - this.width;
+                    } else {
+                        // From right
+                        this.x = c.x + c.width;
+                    }
+                    selfRect.x = this.x;
+                } else {
+                    if (selfRect.y + selfRect.height / 2 < c.y + c.height / 2) {
+                        // From top
+                        this.y = c.y - this.height;
+                    } else {
+                        // From bottom
+                        this.y = c.y + c.height;
+                    }
+                    selfRect.y = this.y;
+                }
+            }
+        }
+    }
+
+    private rectsOverlap(a: {x:number,y:number,width:number,height:number}, b: {x:number,y:number,width:number,height:number}): boolean {
+        return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
     }
 
     public render(ctx: CanvasRenderingContext2D): void {

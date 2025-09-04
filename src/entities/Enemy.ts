@@ -11,6 +11,7 @@ export class Enemy implements Vector2D {
     public bounds: Bounds;
     public animationFrame: number = 0;
     public animationSpeed: number = 0.1;
+    private hasEnteredPlayArea: boolean = false;
 
     constructor(x: number, y: number, type: 'chicken' | 'fox' | 'bear') {
         this.x = x;
@@ -19,7 +20,7 @@ export class Enemy implements Vector2D {
         this.bounds = new EnemyBounds(this.x, this.y, this.width, this.height);
     }
 
-    public update(deltaTime: number, player: Player): void {
+    public update(deltaTime: number, player: Player, colliders: Array<{x: number, y: number, width: number, height: number}> = []): void {
         // Move towards player
         const dx = player.x - this.x;
         const dy = player.y - this.y;
@@ -27,8 +28,21 @@ export class Enemy implements Vector2D {
         
         if (distance > 0) {
             const moveSpeed = this.speed * (deltaTime / 1000);
-            this.x += (dx / distance) * moveSpeed;
-            this.y += (dy / distance) * moveSpeed;
+            let stepX = (dx / distance) * moveSpeed;
+            let stepY = (dy / distance) * moveSpeed;
+
+            // If not yet in play area, skip collision resolution until inside
+            if (!this.hasEnteredPlayArea) {
+                this.x += stepX;
+                this.y += stepY;
+            } else {
+                // Move X then resolve
+                this.x += stepX;
+                this.resolveCollisions(colliders, 'x');
+                // Move Y then resolve
+                this.y += stepY;
+                this.resolveCollisions(colliders, 'y');
+            }
         }
 
         // Update animation frame
@@ -37,6 +51,13 @@ export class Enemy implements Vector2D {
         // Update bounds
         this.bounds.x = this.x;
         this.bounds.y = this.y;
+
+        // Check if fully inside the play area now
+        if (!this.hasEnteredPlayArea) {
+            const insideX = this.x >= 0 && this.x <= 800 - this.width;
+            const insideY = this.y >= 0 && this.y <= 600 - this.height;
+            if (insideX && insideY) this.hasEnteredPlayArea = true;
+        }
     }
 
     public render(ctx: CanvasRenderingContext2D): void {
@@ -144,6 +165,32 @@ export class Enemy implements Vector2D {
         // Legs (brown)
         ctx.fillRect(this.x + 10, this.y + 32, 4, 8);
         ctx.fillRect(this.x + 18, this.y + 32, 4, 8);
+    }
+    private resolveCollisions(colliders: Array<{x: number, y: number, width: number, height: number}>, axis: 'x' | 'y') {
+        const selfRect = { x: this.x, y: this.y, width: this.width, height: this.height };
+        for (const c of colliders) {
+            if (this.rectsOverlap(selfRect, c)) {
+                if (axis === 'x') {
+                    if (selfRect.x + selfRect.width / 2 < c.x + c.width / 2) {
+                        this.x = c.x - this.width;
+                    } else {
+                        this.x = c.x + c.width;
+                    }
+                    selfRect.x = this.x;
+                } else {
+                    if (selfRect.y + selfRect.height / 2 < c.y + c.height / 2) {
+                        this.y = c.y - this.height;
+                    } else {
+                        this.y = c.y + c.height;
+                    }
+                    selfRect.y = this.y;
+                }
+            }
+        }
+    }
+
+    private rectsOverlap(a: {x:number,y:number,width:number,height:number}, b: {x:number,y:number,width:number,height:number}): boolean {
+        return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
     }
 }
 

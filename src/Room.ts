@@ -169,4 +169,36 @@ export class Room {
                 break;
         }
     }
+
+    // Return all collision rectangles (walls + solid decorations)
+    public getColliders(): Array<{x: number, y: number, width: number, height: number}> {
+        const colliders: Array<{x: number, y: number, width: number, height: number}> = [];
+
+        // Walls are entirely solid
+        colliders.push(...this.walls.map(w => ({ x: w.x, y: w.y, width: w.width, height: w.height })));
+
+        // Decoration bounding boxes (approximate their visual sizes)
+        for (const d of this.decorations) {
+            switch (d.type) {
+                case 'table':
+                    colliders.push({ x: d.x, y: d.y, width: 40, height: 30 });
+                    break;
+                case 'chair':
+                    colliders.push({ x: d.x, y: d.y, width: 20, height: 25 });
+                    break;
+                case 'plant':
+                    // Pot + foliage radius ~12, use a rectangle that covers both
+                    colliders.push({ x: d.x + 8, y: d.y + 8, width: 24, height: 28 });
+                    break;
+                case 'poster':
+                    // Flat on wall; treat as non-colliding
+                    break;
+                case 'arcade':
+                    colliders.push({ x: d.x, y: d.y, width: 30, height: 50 });
+                    break;
+            }
+        }
+
+        return colliders;
+    }
 }
